@@ -1,0 +1,10 @@
+# internal: knowledge base, test tools, assistant notes — not published
+knowledge/
+tools/
+CLAUDE.md
+.claude/
+# OS / editor
+Thumbs.db
+desktop.ini
+.DS_Store
+.vscode/

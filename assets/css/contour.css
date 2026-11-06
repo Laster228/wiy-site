@@ -1,0 +1,427 @@
+/* ==========================================================================
+   CONTOUR — layered air defence page
+   Hero: interactive outline map of Ukraine + CONTOUR logo draw-in (contour.js).
+   Timeline (time-based, never scroll-based):
+     0s     map lines draw outwards from the protected object, logo outline draws
+     2.3s   letters reveal          3.2s  kicker / tagline / HUD
+     ~4.3s  logo block docks bottom-left (.is-docked), S/M/L rings draw around the object
+   Everything renders in its final state without JS / with reduced motion.
+   ========================================================================== */
+
+.ct-hero {
+  --edge: max(var(--gutter), calc((100% - var(--container)) / 2 + var(--gutter)));   /* same edges as .container */
+  --t-stroke: 0.4s;   /* logo outline */
+  --t-fill: 2.3s;     /* letters reveal */
+  --t-text: 3.2s;     /* kicker, tagline, HUD */
+  --warn: #fc4f00;    /* unavailable territory only */
+  --mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  position: relative; height: 100svh; min-height: 680px; max-height: 1100px;
+  background: var(--black); color: var(--white); overflow: hidden; cursor: grab; touch-action: pan-y;
+  user-select: none; -webkit-user-select: none;
+}
+
+/* ---------- Map layers ---------- */
+.ct-base, .ct-map, .ct-shade { position: absolute; inset: 0; width: 100%; height: 100%; }
+/* rendered map region: sized and moved from JS (pan / zoom preview are pure transforms) */
+.ct-base { inset: auto; left: 0; top: 0; transform-origin: 0 0; will-change: transform; }
+.ct-base:not(.is-on) { display: none; }   /* spare layer: shown only while a zoom fly is pre-rendered */
+/* pseudo-3D: the stage holds the map canvases; contour.js tilts it after the fly-in */
+.ct-stage { position: absolute; inset: 0; transform-origin: 50% 50%; transform-style: preserve-3d; will-change: transform; }
+/* defence zone: rings, their smooth merge, walls and captions — one screen-space canvas */
+.ct-walls { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; }
+.ct-hero.is-panning { cursor: grabbing; }
+.ct-hero.is-static { cursor: default; }   /* panning switched off (contour.js MAP_PAN) */
+/* bottom edge fades into the black of the Echelon architecture section below: over the map, the zone
+   and the threats, under the logo, HUD, tools and points (z-index 2+) */
+.ct-hero::after { content: ''; position: absolute; z-index: 1; left: 0; right: 0; bottom: 0; height: clamp(160px, 26%, 300px); pointer-events: none;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0.55) 45%, rgba(0, 0, 0, 0.88) 78%, #000 100%); }
+.ct-shade {
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 34% 20% at 50% 50%, rgba(0, 0, 0, 0.92) 30%, transparent 100%),
+    radial-gradient(ellipse 85% 75% at 50% 50%, transparent 45%, rgba(0, 0, 0, 0.7) 100%);
+}
+/* docked: no dark patch behind the logo, only the edge vignette */
+.ct-hero.is-docked .ct-shade {
+  background: radial-gradient(ellipse 85% 75% at 50% 50%, transparent 45%, rgba(0, 0, 0, 0.7) 100%);
+}
+/* with WebGL the docked vignette is drawn on the zone's GL layer (contour.js): this one fades out
+   and stops being composited — one full-screen layer less on every frame */
+.ct-hero.has-gl.is-docked .ct-shade { opacity: 0; visibility: hidden; transition: opacity 0.6s var(--ease), visibility 0s linear 0.6s; }
+
+/* rings + points appear once the logo has docked */
+.ct-walls, .ct-obj { opacity: 0; transition: opacity 0.6s var(--ease); }
+.ct-hero.is-docked .ct-walls, .ct-hero.is-docked .ct-obj { opacity: 1; }
+
+/* ---------- Defence points ---------- */
+.ct-obj { position: absolute; z-index: 3; left: 0; top: 0; width: 44px; height: 44px; margin: -22px 0 0 -22px; display: grid; place-items: center; cursor: grab; touch-action: none; will-change: transform; }
+.ct-obj.is-dragging { cursor: grabbing; z-index: 4; }
+/* shield marker: white shield with a dark outline so it reads on any part of the map */
+.ct-obj__core { position: relative; width: 22px; height: 22px; overflow: visible; transition: transform 0.2s; }
+.ct-obj__core path { fill: var(--white); stroke: rgba(0, 0, 0, 0.9); stroke-width: 2.4; stroke-linejoin: round; paint-order: stroke; transition: fill 0.2s; }
+.ct-obj__core .ct-obj__mark { fill: none; stroke: rgba(0, 0, 0, 0.55); stroke-width: 1.4; }
+.ct-obj:hover .ct-obj__core { transform: scale(1.15); }
+.ct-obj__pulse { position: absolute; inset: 14px; border-radius: 50%; border: 1px solid var(--olive); animation: ct-pulse 2.4s var(--ease-out) infinite; }
+.ct-obj:not(.is-active) .ct-obj__pulse { display: none; }
+@keyframes ct-pulse { from { transform: scale(0.8); opacity: 1; } to { transform: scale(2); opacity: 0; } }
+.ct-obj__tag { position: absolute; left: var(--tag-x, 26px); top: 50%; transform: translateY(-50%); display: grid; gap: 2px; white-space: nowrap; text-align: left; font-family: var(--mono); pointer-events: none; text-shadow: 0 0 6px #000, 0 0 2px #000; transition: opacity 0.3s; }
+.ct-obj:not(.is-active) .ct-obj__tag { opacity: 0.55; }
+.ct-obj__tag b { font-size: 0.8125rem; font-weight: 500; letter-spacing: 0.06em; }
+.ct-obj__tag em { font-style: normal; font-size: 0.625rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--olive); }
+.ct-obj:focus-visible { outline: 1px solid var(--olive); outline-offset: 4px; }
+.ct-obj.is-hostile .ct-obj__core path:first-child { fill: var(--warn); }
+.ct-obj.is-hostile .ct-obj__pulse { border-color: var(--warn); }
+.ct-hud__obj i { font-style: normal; color: var(--white); }
+
+/* ---------- Logo block: centred during the intro, docked bottom-left afterwards ---------- */
+.ct-center { position: absolute; z-index: 2; left: 50%; top: 50%; transform: translate(-50%, -50%); display: grid; justify-items: center; gap: clamp(20px, 2.6vw, 36px); width: min(62vw, 880px); pointer-events: none; }
+/* docked: bottom centre, bottom edge in line with the HUD and the tools (no transform, so the FLIP ends cleanly) */
+.ct-hero.is-docked .ct-center { left: 0; right: 0; margin: 0 auto; top: auto; bottom: 30px; transform: none; width: min(34vw, 480px); justify-items: center; gap: 14px; }
+.ct-logo { width: 100%; height: auto; overflow: visible; }
+.ct-logo__fill path { fill: var(--white); }
+.ct-ln { fill: none; stroke: var(--white); stroke-width: 1.2; vector-effect: non-scaling-stroke; stroke-linejoin: round; opacity: 0; }
+.ct-reveal-rect { transform-box: fill-box; transform-origin: 0 0; }
+.ct-scan { fill: var(--olive); opacity: 0; }
+.ct-kicker { display: inline-flex; align-items: center; gap: 10px; font-family: var(--mono); font-size: 0.75rem; font-weight: 500; letter-spacing: 0.14em; text-transform: uppercase; color: rgba(255, 255, 255, 0.65); }
+.ct-kicker::before { content: ''; width: 6px; height: 6px; background: var(--olive); }
+/* endorsement line under the wordmark, pulled closer to it than the block gap */
+.ct-part { display: inline-flex; align-items: center; gap: 12px; margin-top: calc(clamp(20px, 2.6vw, 36px) * -0.55); font: 500 0.75rem var(--mono); letter-spacing: 0.24em; text-transform: uppercase; color: rgba(255, 255, 255, 0.6); white-space: nowrap; }
+.ct-part i { width: 18px; height: 1px; background: rgba(255, 255, 255, 0.45); }
+.ct-part b { font-weight: 500; color: var(--white); }
+.ct-hero.is-docked .ct-part { margin-top: -6px; font-size: 0.6875rem; }
+
+/* ---------- HUD ---------- */
+.ct-hud { position: absolute; z-index: 2; inset: auto var(--edge) 26px var(--edge); display: grid; grid-template-columns: 1fr auto 1fr; align-items: end; gap: 24px; pointer-events: none; font-family: var(--mono); font-size: 0.6875rem; letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255, 255, 255, 0.45); }
+.ct-hud__obj { display: grid; gap: 10px; justify-items: start; transition: opacity 0.4s; }
+/* city · coordinates in a box like the zoom control: same height, border and bottom line */
+.ct-hud__box { display: flex; align-items: center; height: 36px; border: 1px solid rgba(255, 255, 255, 0.25); white-space: nowrap; }
+.ct-hud__box b { padding: 0 14px; font-weight: 500; font-size: 0.8125rem; color: var(--white); }
+.ct-hud__box span { align-self: stretch; display: flex; align-items: center; padding: 0 14px; border-left: 1px solid rgba(255, 255, 255, 0.25); }
+.ct-hud__scale { display: grid; font: 500 0.6875rem var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: rgba(255, 255, 255, 0.45); grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 6px; white-space: nowrap; }
+.ct-hud__scale i { grid-column: 1 / -1; width: 58px; height: 6px; border: 1px solid rgba(255, 255, 255, 0.55); border-top: 0; background: linear-gradient(90deg, transparent calc(50% - 0.5px), rgba(255, 255, 255, 0.55) calc(50% - 0.5px) calc(50% + 0.5px), transparent calc(50% + 0.5px)) no-repeat 0 100% / 100% 4px; }
+.ct-hud__scale span:nth-of-type(2) { justify-self: end; }
+.ct-deny { position: absolute; z-index: 4; left: 50%; top: 104px; transform: translate(-50%, -8px); padding: 10px 16px; font: 500 0.75rem var(--mono); letter-spacing: 0.1em; text-transform: uppercase; color: var(--warn); border: 1px solid var(--warn); background: rgba(0, 0, 0, 0.85); opacity: 0; pointer-events: none; transition: opacity 0.25s, transform 0.25s; }
+.ct-hero.is-denied .ct-deny { opacity: 1; transform: translate(-50%, 0); }
+/* bottom-right tools: scale · zoom · replay */
+/* ---------- City switcher (top centre): current city white, the neighbours at 30 %; fixed-width slots, so the
+   arrows stay put whatever the names ---------- */
+.ct-cities { position: absolute; z-index: 3; top: calc(var(--header-h) + 22px); left: 50%; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; opacity: 0; transition: opacity 0.8s var(--ease) 0.9s; }
+.ct-hero.is-docked .ct-cities { opacity: 1; }
+.ct-cities__list { display: flex; align-items: center; gap: 12px; }
+.ct-cities__city { width: calc(15 * (1ch + 0.2em)); padding: 8px 0; text-align: center; white-space: nowrap; font: 500 0.875rem var(--mono); letter-spacing: 0.2em; text-transform: uppercase; color: var(--white); opacity: 0.3; transition: opacity 0.3s; }
+.ct-cities__city:hover, .ct-cities__city:focus-visible { opacity: 0.6; }
+.ct-cities__city.is-current { opacity: 1; cursor: default; }
+.ct-cities__arrow { width: 32px; height: 32px; display: grid; place-items: center; color: var(--white); opacity: 0.6; transition: opacity 0.25s; }
+.ct-cities__arrow:hover, .ct-cities__arrow:focus-visible { opacity: 1; }
+.ct-cities__arrow svg { width: 18px; height: 18px; }
+.ct-cities button:focus-visible { outline: 1px solid var(--olive); outline-offset: 2px; }
+/* while the camera flies to a city, the controls wait */
+.ct-hero.is-travel .ct-cities, .ct-hero.is-travel .ct-tools, .ct-hero.is-travel .ct-obj { pointer-events: none; }
+
+/* bottom-right tools: the scale bar stacked above the zoom control, both on the container's right edge */
+.ct-tools { position: absolute; z-index: 3; right: var(--edge); bottom: 26px; display: flex; flex-direction: column; align-items: flex-end; gap: 10px; }
+.ct-zoom { display: flex; align-items: center; height: 36px; border: 1px solid rgba(255, 255, 255, 0.25); }
+.ct-zoom__btn { width: 34px; height: 100%; display: grid; place-items: center; font: 400 1.05rem var(--mono); color: rgba(255, 255, 255, 0.75); transition: background 0.2s, color 0.2s; }
+.ct-zoom__btn:hover { background: var(--white); color: var(--black); }
+.ct-zoom__range { -webkit-appearance: none; appearance: none; width: 110px; height: 100%; margin: 0 6px; background: transparent; cursor: pointer; }
+.ct-zoom__range::-webkit-slider-runnable-track { height: 1px; background: rgba(255, 255, 255, 0.35); }
+.ct-zoom__range::-moz-range-track { height: 1px; background: rgba(255, 255, 255, 0.35); }
+.ct-zoom__range::-webkit-slider-thumb { -webkit-appearance: none; width: 10px; height: 10px; margin-top: -4.5px; background: var(--white); border: 0; border-radius: 0; box-shadow: 0 0 0 3px #000; }
+.ct-zoom__range::-moz-range-thumb { width: 10px; height: 10px; background: var(--white); border: 0; border-radius: 0; box-shadow: 0 0 0 3px #000; }
+.ct-zoom__range:focus-visible { outline: 1px solid var(--olive); outline-offset: 2px; }
+/* ---------- Echelon callouts: a column of cards, each tied to its ring by a leader line (contour.js) ---------- */
+.ct-notes { position: absolute; z-index: 3; left: var(--edge); top: 50%; transform: translateY(-54%); display: grid; gap: 12px; width: 304px; pointer-events: none; }
+.ct-hero.is-notes-right .ct-notes { left: auto; right: var(--edge); }
+/* the point's name tag goes to the side away from the cards, so no leader line runs through it */
+.ct-hero.is-notes-right .ct-obj__tag { left: auto; right: var(--tag-x, 26px); text-align: right; }
+.ct-note { --c: 255, 255, 255; position: relative; display: grid; gap: 9px; padding: 12px 14px 13px; background: rgba(5, 5, 5, 0.82); border: 1px solid rgba(255, 255, 255, 0.12); border-left: 2px solid rgb(var(--c)); pointer-events: auto; cursor: default; opacity: 0; transition: border-color 0.25s, background 0.25s; }
+.ct-hero.is-notes-right .ct-note { border-left-width: 1px; border-left-color: rgba(255, 255, 255, 0.12); border-right: 2px solid rgb(var(--c)); }
+/* colours = the ring captions in contour.js (ZONE[r].cap) */
+.ct-note[data-r="L"] { --c: 111, 211, 137; --dl: 0.5s; }
+.ct-note[data-r="M"] { --c: 240, 198, 74; --dl: 0.62s; }
+.ct-note[data-r="S"] { --c: 240, 106, 110; --dl: 0.74s; }
+/* cards come in one after another once the logo has docked */
+.ct-hero.is-docked .ct-note { opacity: 1; animation: ct-up 0.8s var(--ease-out) both; animation-delay: var(--dl); }
+.ct-note:hover, .ct-note.is-hl { background: rgba(10, 10, 10, 0.94); border-color: rgba(var(--c), 0.55); }
+.ct-note header { display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 10px; }
+.ct-note header b { width: 22px; height: 22px; display: grid; place-items: center; font: 600 0.75rem var(--mono); color: #000; background: rgb(var(--c)); }
+/* the badge takes the echelon's map symbol: L ▲ · M ◆ · S ■ */
+.ct-note[data-r="L"] header b { width: 26px; height: 23px; padding-top: 7px; font-size: 0.6875rem; clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+.ct-note[data-r="M"] header b { width: 27px; height: 27px; margin: -2px -2px; clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
+.ct-note h3 { font-size: 0.9375rem; font-weight: 500; letter-spacing: 0.01em; }
+.ct-note header em { font: 500 0.625rem var(--mono); font-style: normal; letter-spacing: 0.1em; text-transform: uppercase; color: rgb(var(--c)); }
+.ct-note p { font-size: 0.8125rem; line-height: 1.45; color: rgba(255, 255, 255, 0.7); }
+.ct-note__fx { display: flex; gap: 6px; }
+.ct-note__fx figure { margin: 0; display: grid; gap: 4px; justify-items: center; width: 54px; }
+.ct-note__fx span { width: 54px; height: 34px; display: grid; place-items: center; background: var(--gray-50); }
+.ct-note__fx img { width: 80%; height: 80%; object-fit: contain; mix-blend-mode: multiply; }
+.ct-note__fx figcaption { font: 500 0.5625rem var(--mono); letter-spacing: 0.04em; white-space: nowrap; color: rgba(255, 255, 255, 0.75); }
+/* short screens: cards keep the essentials; narrow screens: no room beside the rings */
+@media (max-height: 860px) { .ct-note p { display: none; } .ct-notes { gap: 10px; } }
+@media (max-width: 1100px) { .ct-notes { display: none; } }
+
+@media (max-width: 900px) {
+  .ct-hud { grid-template-columns: 1fr; } .ct-hud__scale { display: none; }
+  .ct-zoom__range { width: 70px; }
+  .ct-cities__list { gap: 4px; } .ct-cities__city { width: calc(14 * (1ch + 0.08em)); font-size: 0.625rem; letter-spacing: 0.08em; }
+  .ct-hero.is-docked .ct-center { width: min(70vw, 420px); bottom: 96px; }
+  .ct-center { width: 84vw; }
+}
+
+/* ---------- Timeline (only while .is-anim) ---------- */
+/* until contour.js is ready keep the hero content hidden (no flash of the final logo) */
+.js .ct-hero:not(.is-ready) .ct-center,
+.js .ct-hero:not(.is-ready) .ct-hud,
+.js .ct-hero:not(.is-ready) .ct-tools,
+.js .ct-hero:not(.is-ready) .ct-base { opacity: 0; }
+.ct-hero.is-anim .ct-ln { opacity: 1; stroke-dasharray: 1; animation: ct-draw 1.5s var(--ease) both, ct-ln-out 0.9s var(--ease) forwards; animation-delay: calc(var(--t-stroke) + var(--d, 0s)), calc(var(--t-fill) + 0.9s); }
+.ct-hero.is-anim .ct-reveal-rect { animation: ct-reveal 1.15s cubic-bezier(0.7, 0, 0.2, 1) both; animation-delay: var(--t-fill); }
+.ct-hero.is-anim .ct-logo__fill { animation: ct-focus 1.4s var(--ease-out) both; animation-delay: var(--t-fill); }
+.ct-hero.is-anim .ct-scan { animation: ct-scan 1.15s cubic-bezier(0.7, 0, 0.2, 1) both; animation-delay: var(--t-fill); }
+.ct-hero.is-anim .ct-kicker { animation: ct-up 0.9s var(--ease-out) both; animation-delay: var(--t-text); }
+.ct-hero.is-anim .ct-part { animation: ct-up 0.9s var(--ease-out) both; animation-delay: calc(var(--t-text) + 0.08s); }
+.ct-hero.is-anim .ct-hud, .ct-hero.is-anim .ct-tools { animation: ct-fade 1s var(--ease) both; animation-delay: calc(var(--t-text) + 0.4s); }
+/* roads, cities, rivers fade in under the borders that are being drawn — only before docking,
+   so the spare layer a zoom fly shows during the intro is never half transparent */
+.ct-hero.is-anim:not(.is-docked) .ct-base { animation: ct-fade 2s var(--ease) both; animation-delay: 0.3s; }
+
+@keyframes ct-draw { from { stroke-dashoffset: 1; } to { stroke-dashoffset: 0; } }
+@keyframes ct-ln-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes ct-reveal { from { transform: scaleX(0); } to { transform: scaleX(1); } }
+@keyframes ct-focus { from { opacity: 0.35; } to { opacity: 1; } }
+@keyframes ct-scan { 0% { transform: translateX(0); opacity: 0; } 4%, 85% { opacity: 1; } 100% { transform: translateX(1000px); opacity: 0; } }
+@keyframes ct-up { from { opacity: 0; transform: translateY(14px); } to { opacity: 1; transform: none; } }
+@keyframes ct-fade { from { opacity: 0; } to { opacity: 1; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .ct-hero * { animation: none !important; transition: none !important; }
+}
+
+/* ==========================================================================
+   Layers L / M / S
+   ========================================================================== */
+/* the section continues the black hero: a shorter run-in, no second "section start" gap */
+.ct-hero + #layers { padding-top: calc(var(--section) * 0.55); }
+.ct-axis { position: relative; margin-bottom: 28px; padding-top: 30px; font-size: 0.75rem; font-weight: 500; color: rgba(255, 255, 255, 0.55); }
+.ct-axis__threat, .ct-axis__obj { position: absolute; top: 0; display: inline-flex; align-items: center; gap: 10px; }
+.ct-axis__threat { left: 0; }
+.ct-axis__threat svg { width: 16px; height: 16px; transform: rotate(90deg); color: var(--white); }
+.ct-axis__obj { right: 0; }
+.ct-axis__obj i { width: 10px; height: 10px; background: var(--white); }
+.ct-axis__line { position: relative; height: 1px; background: rgba(255, 255, 255, 0.3); }
+.ct-axis__line b { position: absolute; top: -4px; padding: 14px 0 0 10px; font-weight: 500; color: rgba(255, 255, 255, 0.45); }
+.ct-axis__line b::before { content: ''; position: absolute; left: 0; top: 0; width: 1px; height: 9px; background: rgba(255, 255, 255, 0.6); }
+
+.ct-layers { display: grid; gap: 0; margin-top: 44px; }
+@media (min-width: 1000px) { .ct-layers { grid-template-columns: repeat(3, 1fr); } }
+.ct-layer { position: relative; display: grid; gap: 20px; align-content: start; padding: clamp(24px, 2.4vw, 36px); border-top: 1px solid var(--line-inv); transition: background 0.5s var(--ease), opacity 0.5s var(--ease); outline: none; }
+@media (min-width: 1000px) {
+  .ct-layer { border-top: 0; border-left: 1px solid var(--line-inv); opacity: 0.5; cursor: pointer; }
+  .ct-layer:first-child { border-left: 0; }
+  .ct-layer.is-active { opacity: 1; background: rgba(255, 255, 255, 0.06); }
+}
+.ct-layer::before { content: ''; position: absolute; inset: 0 0 auto 0; height: 3px; background: var(--olive); transform: scaleX(0); transform-origin: left; transition: transform 0.6s var(--ease-out); }
+.ct-layer.is-active::before { transform: scaleX(1); }
+.ct-layer:focus-visible { box-shadow: inset 0 0 0 2px var(--olive); }
+.ct-layer__top { display: flex; align-items: center; gap: 22px; }
+.ct-layer__k { font-size: clamp(4.5rem, 7vw, 7.5rem); font-weight: 300; line-height: 0.9; letter-spacing: -0.04em; }
+/* the echelon's map symbol next to its letter (same as on the hero map): L ▲ · M ◆ · S ■ */
+.ct-layer__k { position: relative; }
+.ct-layer__k::after { content: ''; position: absolute; left: 100%; top: 0.08em; margin-left: 6px; width: 14px; height: 14px; }
+.ct-layer[data-layer="L"] .ct-layer__k::after { background: #6fd389; clip-path: polygon(50% 0, 100% 90%, 0 90%); }
+.ct-layer[data-layer="M"] .ct-layer__k::after { background: #f0c64a; clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
+.ct-layer[data-layer="S"] .ct-layer__k::after { background: #f06a6e; width: 11px; height: 11px; }
+.ct-layer__top h3 { font-size: var(--fs-h3); font-weight: 400; }
+.ct-layer__top div span { display: block; margin-top: 4px; font-size: 0.875rem; font-weight: 500; color: rgba(255, 255, 255, 0.55); }
+.ct-layer__desc { color: rgba(255, 255, 255, 0.75); max-width: 40ch; }
+.ct-layer__label { font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255, 255, 255, 0.45); }
+.ct-fx { display: flex; flex-wrap: wrap; gap: 8px; margin-top: -8px; }
+.ct-fx figure { margin: 0; display: grid; gap: 8px; justify-items: center; }
+.ct-fx span { width: 88px; height: 72px; display: grid; place-items: center; background: var(--gray-50); }
+.ct-fx img { width: 78%; height: 78%; object-fit: contain; mix-blend-mode: multiply; }
+.ct-fx figcaption { font-size: 0.6875rem; font-weight: 500; color: rgba(255, 255, 255, 0.8); }
+.ct-layer__meta { display: grid; margin: 0; }
+.ct-layer__meta > div { display: grid; grid-template-columns: 84px 1fr; gap: 12px; padding: 11px 0; border-top: 1px solid var(--line-inv); font-size: 0.8125rem; }
+.ct-layer__meta dt { color: rgba(255, 255, 255, 0.45); }
+.ct-layer__meta dd { margin: 0; color: rgba(255, 255, 255, 0.85); }
+/* under all three columns: the launch platforms serve every echelon */
+.ct-anyplat { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 22px; padding: 22px clamp(24px, 2.4vw, 36px); border-top: 1px solid var(--line-inv); border-bottom: 1px solid var(--line-inv); color: rgba(255, 255, 255, 0.75); transition: background 0.3s var(--ease); }
+.ct-anyplat:hover { background: rgba(255, 255, 255, 0.04); }
+.ct-anyplat b { font-weight: 600; color: var(--white); }
+.ct-anyplat__g { display: inline-flex; align-items: center; gap: 8px; }
+.ct-anyplat__go { display: inline-flex; align-items: center; gap: 10px; margin-left: auto; font-weight: 500; color: var(--white); }
+.ct-anyplat__go svg { width: 18px; height: 18px; transition: transform 0.3s var(--ease); }
+.ct-anyplat:hover .ct-anyplat__go svg { transform: translateX(4px); }
+
+/* ==========================================================================
+   Closed loop
+   ========================================================================== */
+.ct-sensors { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 28px; padding: 22px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); margin-bottom: 48px; }
+.ct-sensors__label { font-size: 0.75rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--gray-500); }
+.ct-sensors ul { display: flex; flex-wrap: wrap; gap: 8px; }
+.ct-sensors li { height: 32px; padding: 0 14px; display: inline-flex; align-items: center; font-size: 0.875rem; font-weight: 500; border: 1px solid var(--line); }
+.ct-loop { display: grid; gap: 16px; counter-reset: none; }
+@media (min-width: 900px) { .ct-loop { grid-template-columns: repeat(4, 1fr); } }
+.ct-loop li { position: relative; display: grid; gap: 10px; align-content: start; padding: 28px 24px 32px; background: var(--gray-50); }
+.ct-loop li b { font-size: 0.8125rem; font-weight: 600; color: var(--olive); }
+.ct-loop li h3 { font-size: var(--fs-h3); font-weight: 400; letter-spacing: -0.01em; }
+.ct-loop li span { font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em; text-transform: uppercase; color: var(--gray-500); }
+.ct-loop li p { color: var(--gray-700); font-size: 0.9375rem; }
+.ct-loop li.is-key { background: var(--black); color: var(--white); }
+.ct-loop li.is-key span { color: rgba(255, 255, 255, 0.55); }
+.ct-loop li.is-key p { color: rgba(255, 255, 255, 0.75); }
+@media (min-width: 900px) {
+  .ct-loop li:not(:last-child)::after { content: ''; position: absolute; top: 34px; right: -12px; width: 8px; height: 8px; border-top: 1px solid var(--gray-500); border-right: 1px solid var(--gray-500); transform: rotate(45deg); z-index: 1; }
+}
+
+/* ==========================================================================
+   Echelon symbols outside the hero: L ▲ · M ◆ · S ■, the same shapes as on the map. Light sections
+   take deeper tones of the ring colours, so the symbols hold on white
+   ========================================================================== */
+.ct-g { --gl: #6fd389; --gm: #f0c64a; --gs: #f06a6e; display: inline-block; flex: none; width: 11px; height: 10px; }
+.ct-g--l { background: var(--gl); clip-path: polygon(50% 0, 100% 100%, 0 100%); }
+.ct-g--m { width: 11px; height: 11px; background: var(--gm); clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
+.ct-g--s { width: 9px; height: 9px; background: var(--gs); }
+.bg-gray .ct-g, #detection .ct-g { --gl: #2f9c52; --gm: #c08c06; --gs: #d8434b; }
+
+/* ==========================================================================
+   Effectors — the site's product cards (filled from data.js by contour.js) + an echelon filter
+   ========================================================================== */
+.ct-echf { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 32px; }
+.ct-echf button { display: inline-flex; align-items: center; gap: 9px; height: 38px; padding: 0 16px; font-size: 0.8125rem; font-weight: 500; color: var(--black); background: var(--white); border: 1px solid var(--line); transition: border-color 0.2s, background 0.2s, color 0.2s; }
+.ct-echf button:hover { border-color: var(--black); }
+.ct-echf button.is-on { color: var(--white); background: var(--black); border-color: var(--black); }
+.ct-echf button:focus-visible { outline: 1px solid var(--olive); outline-offset: 2px; }
+.ct-effs { display: grid; gap: 40px 16px; grid-template-columns: repeat(auto-fit, minmax(min(100%, 260px), 1fr)); }
+.ct-effs .card__img { background: var(--white); }      /* white studio tiles on the gray section */
+.ct-eff { transition: opacity 0.4s var(--ease); }
+.ct-effs[data-f="L"] .ct-eff:not([data-ech~="L"]), .ct-effs[data-f="M"] .ct-eff:not([data-ech~="M"]), .ct-effs[data-f="S"] .ct-eff:not([data-ech~="S"]) { opacity: 0.28; }
+.ct-eff__ech { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 4px; font-size: 0.75rem; font-weight: 600; color: var(--gray-700); }
+.ct-eff__ech span { display: inline-flex; align-items: center; gap: 7px; }
+
+/* ==========================================================================
+   Launch platforms — multi-platform: a gallery of tiles of different sizes, with 1px
+   seams, the width of the site container. Platform tiles: render + a label bar (number · name); two note tiles fill the grid.
+   ========================================================================== */
+/* the whole section is one grid: edge columns run from the site container to the screen edges (the --side track),
+   the content columns match the container; empty edge cells per row carry the seams out to the screen edges */
+.ct-gal-sec { --side: calc(max(var(--gutter), (100% - var(--container)) / 2 + var(--gutter)) - 1px); border-block: 1px solid var(--line-inv); }
+.ct-gal { display: grid; gap: 1px; background: var(--line-inv); grid-template-columns: var(--side) minmax(0, 1fr) var(--side);
+  grid-template-areas: "e1 head e2" "e1 box e2" "e1 air e2" "e1 ugv e2" "e1 ech e2" "e1 usv e2" "e1 crew e2" "e1 more e2"; }
+.ct-edge { background: var(--black); }
+.ct-edge--1 { grid-area: e1; } .ct-edge--2 { grid-area: e2; } .ct-edge--3 { grid-area: e3; } .ct-edge--4 { grid-area: e4; } .ct-edge--5 { grid-area: e5; }
+.ct-edge--6 { grid-area: e6; } .ct-edge--7 { grid-area: e7; } .ct-edge--8 { grid-area: e8; } .ct-edge--9 { grid-area: e9; }
+.ct-edge--3, .ct-edge--4, .ct-edge--5, .ct-edge--6, .ct-edge--7, .ct-edge--8, .ct-edge--9 { display: none; }
+@media (min-width: 640px) {
+  .ct-gal { grid-template-columns: var(--side) repeat(4, minmax(0, 1fr)) var(--side);
+    grid-template-rows: auto repeat(2, clamp(280px, 40vw, 380px)) clamp(260px, 34vw, 340px) auto;
+    grid-template-areas: "e1 head head head head e2" "e3 box box air air e4" "e3 box box ugv ugv e5" "e6 usv usv crew crew e7" "e8 ech ech more more e9"; }
+  .ct-edge--3, .ct-edge--4, .ct-edge--5, .ct-edge--6, .ct-edge--7, .ct-edge--8, .ct-edge--9 { display: block; }
+  .ct-edge--1, .ct-edge--2 { background: #141414; }   /* the heading row reads as one dark-grey band to the screen edges (on phones these two run the full height, so they stay black) */
+}
+@media (min-width: 1000px) {
+  .ct-gal { grid-template-columns: var(--side) repeat(6, minmax(0, 1fr)) var(--side);
+    grid-template-rows: auto clamp(320px, 24vw, 420px) clamp(300px, 21vw, 380px) clamp(300px, 21vw, 380px);
+    grid-template-areas: "e1 head head head head head head e2" "e3 box box box air air air e4" "e3 box box box ugv ugv ech e5" "e6 usv usv crew crew more more e7"; }
+  .ct-edge--8, .ct-edge--9 { display: none; }
+}
+/* the heading cell: kicker, title and text, padded like the tiles */
+.ct-tile.ct-tile--head { grid-area: head; min-height: 0; justify-content: center; background: #141414; padding: clamp(40px, 5vw, 88px) clamp(18px, 1.8vw, 28px); }
+.ct-tile--head .head { margin-bottom: 0; }
+.ct-tile { position: relative; display: flex; flex-direction: column; min-width: 0; min-height: 300px; margin: 0; overflow: hidden; background: #0b0b0b; }
+@media (min-width: 640px) { .ct-tile { min-height: 0; } }
+.ct-tile--box { grid-area: box; } .ct-tile--air { grid-area: air; } .ct-tile--ugv { grid-area: ugv; }
+.ct-tile--usv { grid-area: usv; } .ct-tile--crew { grid-area: crew; } .ct-tile--ech { grid-area: ech; } .ct-tile--more { grid-area: more; }
+.ct-tile__media { position: relative; flex: 1; min-height: 0; background: radial-gradient(60% 60% at 50% 55%, #1b1b1b, #0b0b0b 72%); }
+.ct-tile__media img { position: absolute; inset: 26% 8% 6%; width: 84%; height: 68%; object-fit: contain; transition: transform 0.9s var(--ease-out); }
+.ct-tile--box .ct-tile__media img { inset: 14% 8% 6%; height: 80%; }
+.ct-tile:hover .ct-tile__media img { transform: scale(1.04); }
+@media (max-width: 999px) { .ct-tile__media img, .ct-tile--box .ct-tile__media img { inset: 32% 10% 6%; height: 62%; width: 80%; } }   /* below the caption on smaller tiles */
+/* photo tile: a full scene instead of a cut-out render, covers the whole tile; the label bar lies on the photo;
+   top and bottom are darkened for the caption and the bar */
+.ct-tile--photo .ct-tile__media { position: absolute; inset: 0; }
+.ct-tile--photo .ct-tile__media img { inset: 0; width: 100%; height: 100%; object-fit: cover; object-position: 50% 55%; }
+.ct-tile--photo .ct-tile__media::after { content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none;
+  background: linear-gradient(180deg, rgba(0, 0, 0, 0.74), rgba(0, 0, 0, 0.25) 26%, rgba(0, 0, 0, 0) 44%, rgba(0, 0, 0, 0) 62%, rgba(0, 0, 0, 0.72)); }
+.ct-tile--photo .ct-tile__cap { color: rgba(255, 255, 255, 0.85); text-shadow: 0 1px 12px rgba(0, 0, 0, 0.6); }
+.ct-tile--photo .ct-tile__bar { position: relative; z-index: 1; margin-top: auto; background: none; border-top-color: transparent; text-shadow: 0 1px 12px rgba(0, 0, 0, 0.6); }
+.ct-tile--photo .ct-tile__bar b { color: rgba(255, 255, 255, 0.7); }
+.ct-tile--ugv.ct-tile--photo .ct-tile__media img { object-position: 50% 30%; }
+.ct-tile--usv.ct-tile--photo .ct-tile__media img { object-position: 0% 60%; }
+.ct-tile--crew.ct-tile--photo .ct-tile__media img { object-position: 50% 68%; }
+/* Ground box keeps its white label bar: the photo stops above it */
+.ct-tile--box.ct-tile--photo .ct-tile__media { position: relative; inset: auto; }
+.ct-tile--box.ct-tile--photo .ct-tile__media::after { background: linear-gradient(180deg, rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.2) 24%, rgba(0, 0, 0, 0) 40%); }
+.ct-tile--box.ct-tile--photo .ct-tile__bar { margin-top: 0; text-shadow: none; }
+@media (max-width: 999px) { .ct-tile--photo .ct-tile__media::after { background: linear-gradient(180deg, rgba(0, 0, 0, 0.78), rgba(0, 0, 0, 0.3) 38%, rgba(0, 0, 0, 0) 58%, rgba(0, 0, 0, 0.75)); } }
+.ct-tile__media video { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; opacity: 0; transition: opacity 0.5s var(--ease); }
+.ct-tile__media video.is-ready { opacity: 1; }
+.ct-tile__cap { position: absolute; top: 0; left: 0; z-index: 1; display: grid; gap: 6px; max-width: 30ch; padding: clamp(18px, 1.8vw, 28px); font-size: 0.8125rem; line-height: 1.45; color: rgba(255, 255, 255, 0.6); }
+.ct-tile__cap span { font-size: 0.6875rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--white); }
+/* the label bar under the picture: number · name */
+.ct-tile__bar { display: flex; align-items: center; gap: 22px; flex: none; height: clamp(56px, 4.4vw, 72px); padding: 0 clamp(18px, 1.8vw, 28px); background: #141414; border-top: 1px solid var(--line-inv); font-size: clamp(0.9375rem, 1.1vw, 1.125rem); font-weight: 600; letter-spacing: 0.02em; text-transform: uppercase; }
+.ct-tile__bar b { font-size: 0.75rem; font-weight: 600; color: rgba(255, 255, 255, 0.5); }
+.ct-tile--box .ct-tile__bar { color: var(--black); background: var(--white); border-color: var(--white); }
+.ct-tile--box .ct-tile__bar b { color: var(--gray-500); }
+/* echelon markers of the platform, right side of the label bar: glyph + letter */
+.ct-tile__ech { display: flex; align-items: center; gap: 14px; margin-left: auto; font-size: 0.75rem; font-weight: 600; letter-spacing: 0.06em; color: rgba(255, 255, 255, 0.75); }
+.ct-tile__ech span { display: inline-flex; align-items: center; gap: 6px; }
+.ct-tile--box .ct-tile__ech { color: var(--gray-700); }
+.ct-tile--box .ct-tile__ech .ct-g { --gl: #2f9c52; --gm: #c08c06; --gs: #d8434b; }
+/* note tiles */
+.ct-tile--note { justify-content: space-between; gap: 28px; min-height: 0; padding: clamp(22px, 2vw, 32px); }
+.ct-tile--ech { color: var(--black); background: var(--white); }
+.ct-tile--ech .ct-g { --gl: #2f9c52; --gm: #c08c06; --gs: #d8434b; transform: scale(1.6); transform-origin: left center; }
+.ct-tile__glyphs { display: flex; align-items: center; gap: 22px; }
+.ct-tile--note p { font-size: 0.875rem; line-height: 1.6; color: rgba(255, 255, 255, 0.7); }
+.ct-tile--note p b { display: block; margin-bottom: 8px; font-size: clamp(1.125rem, 1.4vw, 1.375rem); font-weight: 500; line-height: 1.25; color: var(--white); }
+.ct-tile--ech p { color: var(--gray-700); }
+.ct-tile--ech p b { color: var(--black); }
+.ct-tile--more { background: #141414; }
+.ct-tile__k { font-size: 0.75rem; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255, 255, 255, 0.45); }
+.ct-tile--more p { font-size: clamp(1.125rem, 1.6vw, 1.625rem); font-weight: 400; line-height: 1.35; color: var(--white); }
+@media (prefers-reduced-motion: reduce) { .ct-tile__media img { transition: none; } }
+
+/* ==========================================================================
+   Detection — the sensors and information sources behind the air picture
+   ========================================================================== */
+.ct-det { display: grid; gap: 32px; }
+@media (min-width: 1000px) { .ct-det { grid-template-columns: 5fr 7fr; gap: clamp(40px, 5vw, 88px); } }
+.ct-det__fig { position: relative; display: grid; place-items: center; min-height: 420px; margin: 0; background: var(--gray-50); }
+.ct-det__fig img { width: min(56%, 300px); height: auto; margin-bottom: 56px; }
+.ct-det__fig figcaption { position: absolute; left: 28px; right: 28px; bottom: 24px; font-size: 0.875rem; color: var(--gray-700); }
+.ct-det__list { display: grid; grid-template-columns: 1fr 1fr; align-content: start; border-top: 1px solid var(--line); }
+.ct-det__list li { display: grid; gap: 10px; align-content: start; padding: 26px 28px 30px 0; border-bottom: 1px solid var(--line); }
+.ct-det__list li:nth-child(even) { padding-left: 28px; border-left: 1px solid var(--line); }
+.ct-det__list svg { width: 26px; height: 26px; }
+.ct-det__list h3 { font-size: 1.125rem; font-weight: 500; }
+.ct-det__list p { font-size: 0.9375rem; color: var(--gray-700); }
+@media (max-width: 640px) {
+  .ct-det__list { grid-template-columns: 1fr; }
+  .ct-det__list li:nth-child(even) { padding-left: 0; border-left: 0; }
+}
+
+/* ==========================================================================
+   Mosaic UXS — what it does · strategic vs tactical · its two loops
+   ========================================================================== */
+.ct-does { display: grid; grid-template-columns: repeat(4, 1fr); margin-bottom: clamp(40px, 5vw, 72px); border-top: 1px solid var(--line-inv); border-bottom: 1px solid var(--line-inv); }
+.ct-does li { display: grid; gap: 16px; justify-items: start; align-content: start; padding: 28px 24px 30px; }
+.ct-does li:first-child { padding-left: 0; }
+.ct-does li + li { border-left: 1px solid var(--line-inv); }
+.ct-does svg { width: 28px; height: 28px; }
+.ct-does span { font-size: 1.0625rem; font-weight: 500; }
+@media (max-width: 899px) {
+  .ct-does { grid-template-columns: 1fr 1fr; }
+  .ct-does li:nth-child(3) { padding-left: 0; border-left: 0; }
+  .ct-does li:nth-child(n + 3) { border-top: 1px solid var(--line-inv); }
+}
+/* strategic vs tactical on black: Mosaic in a dark panel, CONTOUR (this page) in the white one */
+.ct-duo { display: grid; gap: 16px; }
+@media (min-width: 1000px) { .ct-duo { grid-template-columns: 1fr 1fr; } }
+.ct-duo > div { display: grid; gap: 22px; align-content: start; padding: clamp(28px, 3.4vw, 56px); background: #0e0e0e; border: 1px solid var(--line-inv); }
+.ct-duo .kicker { color: rgba(255, 255, 255, 0.65); }
+.ct-duo > .ct-duo__key { color: var(--black); background: var(--white); border-color: var(--white); }
+.ct-duo > .ct-duo__key .kicker { color: var(--gray-500); }
+.ct-list { margin-top: 12px; border-top: 1px solid var(--line-inv); }
+.ct-list li { padding: 15px 0; border-bottom: 1px solid var(--line-inv); font-weight: 500; }
+.ct-duo__key .ct-list, .ct-duo__key .ct-list li { border-color: var(--line); }

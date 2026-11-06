@@ -1,0 +1,337 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>CONTOUR — Layered air defence by WIY</title>
+  <meta name="description" content="CONTOUR is the WIY layered air defence system: long range, mid range and self defence interceptors linked into one closed loop.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=Montserrat:wght@300;400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/main.css">
+  <link rel="stylesheet" href="assets/css/contour.css">
+  <script>document.documentElement.classList.add('js');</script>
+</head>
+<body data-page="contour">
+  <div id="site-header"></div>
+
+  <main>
+    <!-- HERO — contour map + logo draw-in -->
+    <section class="ct-hero" id="ct-hero" aria-label="CONTOUR — interactive defence map">
+      <!-- map stage: tilted into pseudo-3D after the fly-in -->
+      <div class="ct-stage" id="ct-stage">
+        <canvas class="ct-base is-on" id="ct-base" aria-hidden="true"></canvas>
+        <canvas class="ct-base" id="ct-base-alt" aria-hidden="true"></canvas>
+        <canvas class="ct-map" id="ct-map" aria-hidden="true"></canvas>
+      </div>
+      <div class="ct-shade" aria-hidden="true"></div>
+      <!-- defence zone in screen space: the pseudo-3D walls (WebGL), then rings, merge and captions;
+           shields are inserted after it by contour.js -->
+      <canvas class="ct-walls" id="ct-walls-gl" aria-hidden="true"></canvas>
+      <canvas class="ct-walls" id="ct-walls" aria-hidden="true"></canvas>
+      <!-- threat demo: enemy drones flying in, interceptors of each echelon, hits (contour.js) -->
+      <canvas class="ct-walls" id="ct-threats" aria-hidden="true"></canvas>
+      <template id="ct-obj-tpl">
+        <button class="ct-obj" type="button"><i class="ct-obj__pulse"></i><svg class="ct-obj__core" viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2.2l8 3v6.1c0 4.9-3.3 9.1-8 10.7-4.7-1.6-8-5.8-8-10.7V5.2l8-3z"/><path class="ct-obj__mark" d="M12 6.2v11.6"/></svg><span class="ct-obj__tag"><b></b><em></em></span></button>
+      </template>
+
+      <div class="ct-center">
+        <span class="ct-kicker">Layered defence in one connected system</span>
+        <svg class="ct-logo" id="ct-logo" viewBox="-4 -4 1005 86" role="img" aria-label="CONTOUR">
+          <defs>
+            <linearGradient id="ct-reveal-grad" x1="0" x2="1" y1="0" y2="0">
+              <stop offset="0" stop-color="#fff"/>
+              <stop offset="0.9" stop-color="#fff"/>
+              <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+            </linearGradient>
+            <mask id="ct-reveal" maskUnits="userSpaceOnUse" x="-4" y="-4" width="1005" height="86">
+              <rect class="ct-reveal-rect" x="-4" y="-4" width="1125" height="86" fill="url(#ct-reveal-grad)"/>
+            </mask>
+          </defs>
+          <g class="ct-logo__stroke" id="ct-logo-stroke"></g>
+          <g class="ct-logo__fill" id="ct-logo-fill" mask="url(#ct-reveal)">
+            <path d="M111.202 16.9124H57.8522C45.6012 16.9124 36.1806 18.7926 29.6946 22.6544C23.1861 26.4627 19.835 31.7392 19.835 38.4487C19.835 45.219 23.1792 50.5941 29.6832 54.5381L29.6889 54.5414C36.1751 58.4053 45.5978 60.2867 57.8522 60.2867H111.202V76.4039H55.7424C38.6288 76.4039 25.1687 73.0458 15.2811 66.4178L14.813 66.0998C4.91283 59.2143 -0.000150732 50.0197 -0.000151381 38.4487C-0.000114204 26.9461 4.91108 17.853 14.8097 11.1009L14.813 11.0993C24.7423 4.26068 38.3572 0.795196 55.7424 0.795196H111.202V16.9124Z"/>
+            <path fill-rule="evenodd" d="M203.893 0.795196C221.21 0.795287 234.757 4.26042 244.618 11.0977L244.624 11.1009C254.522 17.853 259.434 26.9462 259.434 38.4487C259.434 49.9495 254.49 59.1125 244.519 66.0003L244.517 66.0019C234.587 72.9069 221.073 76.4038 203.893 76.4039H187.01C169.626 76.4039 156.012 72.9058 146.084 66.0019C136.18 59.1152 131.267 49.9521 131.267 38.4487C131.267 26.9461 136.178 17.853 146.077 11.1009L146.08 11.0993C156.01 4.26066 169.624 0.795196 187.01 0.795196H203.893ZM189.12 16.9124C176.869 16.9124 167.448 18.7926 160.962 22.6544C154.453 26.4627 151.102 31.7392 151.102 38.4487C151.102 45.219 154.447 50.5941 160.951 54.5381L160.956 54.5414C167.442 58.4054 176.866 60.2867 189.12 60.2867H201.682C213.936 60.2866 223.359 58.4054 229.845 54.5414L229.851 54.5381C236.153 50.7161 239.459 45.5488 239.595 39.0709L239.599 38.4397C239.596 31.7374 236.248 26.4656 229.748 22.6593C223.327 18.7929 213.935 16.9124 201.682 16.9124H189.12Z"/>
+            <path d="M306.977 2.30228C307.272 2.30233 307.59 2.38358 307.941 2.57874L383.79 56.0664H385.493V2.57303C385.493 2.42795 385.515 2.36068 385.526 2.33653C385.548 2.32576 385.615 2.30228 385.764 2.30228H403.551C403.696 2.30234 403.763 2.32554 403.787 2.33653C403.798 2.36014 403.821 2.42669 403.821 2.57303V74.626C403.821 74.771 403.798 74.8375 403.787 74.8617C403.763 74.8727 403.697 74.8967 403.551 74.8968H378.729C378.471 74.8968 378.168 74.8066 377.807 74.5494L302.724 20.53H301.017V74.626C301.017 74.7709 300.994 74.8375 300.983 74.8617C300.959 74.8727 300.893 74.8968 300.746 74.8968H282.96C282.812 74.8968 282.746 74.8726 282.723 74.8617C282.711 74.8373 282.689 74.7705 282.689 74.626V2.57303C282.689 2.42723 282.712 2.36037 282.723 2.33653C282.746 2.32561 282.813 2.30228 282.96 2.30228H306.977Z"/>
+            <path d="M554.973 2.30228C555.118 2.30234 555.185 2.32555 555.209 2.33653C555.22 2.36013 555.243 2.42668 555.243 2.57303V16.9433C555.243 17.0885 555.22 17.1549 555.209 17.179C555.185 17.19 555.119 17.2132 554.973 17.2133H500.374V74.626C500.374 74.7711 500.351 74.8376 500.339 74.8617C500.316 74.8727 500.25 74.8967 500.104 74.8968H482.316C482.17 74.8968 482.103 74.8727 482.08 74.8617C482.069 74.8375 482.046 74.7709 482.046 74.626V17.2133H427.347C427.201 17.2133 427.134 17.19 427.111 17.179C427.1 17.1549 427.076 17.0885 427.076 16.9433V2.57303C427.076 2.42673 427.1 2.36015 427.111 2.33653C427.134 2.32553 427.201 2.30228 427.347 2.30228H554.973Z"/>
+            <path fill-rule="evenodd" d="M647.606 0.795196C664.924 0.795225 678.471 4.26029 688.333 11.0977L688.338 11.1009C698.236 17.853 703.148 26.9462 703.148 38.4487C703.148 49.9496 698.204 59.1125 688.233 66.0003L688.231 66.0019C678.301 72.9069 664.787 76.4038 647.606 76.4039H630.724C613.34 76.4039 599.726 72.906 589.797 66.0019C579.894 59.1152 574.982 49.9521 574.982 38.4487C574.982 26.9461 579.893 17.853 589.792 11.1009L589.794 11.0993C599.723 4.26062 613.338 0.795209 630.724 0.795196H647.606ZM632.834 16.9124C620.583 16.9124 611.163 18.7927 604.677 22.6544C598.168 26.4628 594.817 31.7391 594.817 38.4487C594.817 45.2191 598.161 50.5941 604.665 54.5381L604.671 54.5414C611.157 58.4054 620.579 60.2867 632.834 60.2867H645.396C657.65 60.2867 667.073 58.4055 673.559 54.5414L673.564 54.5381C679.867 50.7161 683.173 45.549 683.309 39.0709L683.312 38.4397C683.309 31.7373 679.962 26.4656 673.462 22.6593C667.041 18.7929 657.649 16.9124 645.396 16.9124H632.834Z"/>
+            <path d="M744.461 2.30228C744.606 2.30231 744.673 2.32551 744.697 2.33653C744.708 2.36004 744.731 2.42646 744.731 2.57303V42.9707C744.731 45.4126 744.9 47.4249 745.255 48.9844C745.629 50.6313 746.551 52.2596 747.951 53.8694C749.413 55.5511 751.498 56.8254 754.14 57.7292L754.149 57.7325L754.158 57.7358C756.775 58.562 760.317 59.24 764.76 59.7786H764.762C769.294 60.3198 774.857 60.5885 781.443 60.5885H792.296C799.755 60.5884 805.964 60.219 810.911 59.4736C815.846 58.7299 819.662 57.5686 822.281 55.94L822.294 55.9318C824.85 54.2744 826.686 52.4315 827.712 50.3789C828.724 48.3545 829.208 45.8719 829.208 42.9707V2.57303C829.208 2.43252 829.231 2.37498 829.241 2.35774C829.261 2.34577 829.347 2.30231 829.578 2.30228H847.265C847.41 2.3023 847.477 2.3255 847.501 2.33653C847.512 2.35997 847.535 2.42631 847.535 2.57303V46.8901C847.535 56.6478 843.409 63.9088 835.11 68.7812C826.741 73.694 814.081 76.2032 797.018 76.2033H776.719C758.462 76.2033 745.569 73.6866 737.874 68.7959C730.228 63.869 726.404 56.6075 726.404 46.8901V2.57303C726.404 2.42682 726.426 2.36019 726.437 2.33653C726.461 2.32556 726.527 2.30228 726.674 2.30228H744.461Z"/>
+            <path fill-rule="evenodd" d="M963.916 2.30228C974.403 2.30229 982.375 4.42841 987.938 8.56875C993.477 12.6907 996.244 18.3323 996.244 25.5854C996.244 31.4018 994.283 36.2792 990.359 40.2697C986.434 44.1942 980.723 46.7868 973.133 47.9748L971.593 48.2154L996.069 74.8886C996.043 74.892 996.012 74.8968 995.974 74.8968H971.956C971.43 74.8968 971.047 74.6989 970.731 74.2476L970.708 74.2158L970.683 74.1857L949.831 49.6727H894.043V74.626C894.043 74.7728 894.019 74.8391 894.008 74.8625C893.984 74.8736 893.917 74.8968 893.773 74.8968H875.985C875.838 74.8968 875.772 74.8726 875.749 74.8617C875.738 74.8374 875.715 74.7707 875.715 74.626V2.57303C875.715 2.42697 875.738 2.36025 875.749 2.33653C875.772 2.32561 875.839 2.3023 875.985 2.30228H963.916ZM894.043 17.2133V34.6614H963.012C967.26 34.6614 970.589 33.9951 972.88 32.5475C975.235 31.0592 976.409 28.7963 976.409 25.8872C976.409 23.0068 975.23 20.7697 972.876 19.3002C970.586 17.8716 967.259 17.2133 963.012 17.2133H894.043Z"/>
+          </g>
+          <rect class="ct-scan" x="0" y="-10" width="2" height="98"/>
+        </svg>
+        <!-- endorsement: CONTOUR is the interceptor (tactical) layer of Mosaic -->
+        <p class="ct-part">Interceptors<i aria-hidden="true"></i>Part of <b>Mosaic</b></p>
+      </div>
+
+      <div class="ct-hud">
+        <!-- bordered box (city · coordinates), like the zoom control on the right -->
+        <div class="ct-hud__obj" aria-live="polite"><div class="ct-hud__box"><b id="ct-hud-name">KYIV</b><span id="ct-coords">50.45°N · 30.52°E</span></div></div>
+      </div>
+      <div class="ct-deny" id="ct-notice" role="status">Unavailable territory</div>
+      <!-- city switcher: the camera flies to the chosen city and the defence point deploys there (contour.js) -->
+      <nav class="ct-cities" aria-label="Protected city">
+        <button class="ct-cities__arrow" type="button" data-step="-1" aria-label="Previous city"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+        <div class="ct-cities__list" id="ct-cities"></div>
+        <button class="ct-cities__arrow" type="button" data-step="1" aria-label="Next city"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
+      </nav>
+      <!-- scale bar above the zoom control -->
+      <div class="ct-tools">
+        <div class="ct-hud__scale" aria-hidden="true"><i id="ct-scale-bar"></i><span>0</span><span id="ct-scale-lbl">50 km</span></div>
+        <div class="ct-zoom" role="group" aria-label="Map zoom">
+          <button class="ct-zoom__btn" type="button" id="ct-zoom-out" aria-label="Zoom out">−</button>
+          <input class="ct-zoom__range" type="range" id="ct-zoom" min="0" max="100" step="1" value="30" aria-label="Zoom level">
+          <button class="ct-zoom__btn" type="button" id="ct-zoom-in" aria-label="Zoom in">+</button>
+        </div>
+      </div>
+
+      <!-- echelon callouts: one card per ring, linked to the active point's ring by a leader line
+           (drawn by contour.js); the column sits on the side away from the active point -->
+      <div class="ct-notes" id="ct-notes" aria-label="Defence echelons">
+        <article class="ct-note" data-r="L">
+          <header><b>L</b><h3>Long range</h3><em>up to 50 km</em></header>
+          <p>Intercepts far from the object — before strike drones get close.</p>
+          <div class="ct-note__fx"><figure><span><img src="assets/img/strila.webp" alt=""></span><figcaption>STRILA</figcaption></figure><figure><span><img src="assets/img/strila-2-lr.webp" alt=""></span><figcaption>STRILA 2 LR</figcaption></figure></div>
+        </article>
+        <article class="ct-note" data-r="M">
+          <header><b>M</b><h3>Mid range</h3><em>up to 30 km</em></header>
+          <p>The midline against fast, jet-powered aerial targets.</p>
+          <div class="ct-note__fx"><figure><span><img src="assets/img/strila.webp" alt=""></span><figcaption>STRILA</figcaption></figure><figure><span><img src="assets/img/strila-2-lr.webp" alt=""></span><figcaption>STRILA 2 LR</figcaption></figure><figure><span><img src="assets/img/spys.webp" alt=""></span><figcaption>SPYS</figcaption></figure><figure><span><img src="assets/img/spys-hl.webp" alt=""></span><figcaption>SPYS HL</figcaption></figure></div>
+        </article>
+        <article class="ct-note" data-r="S">
+          <header><b>S</b><h3>Self defence</h3><em>up to 12 km</em></header>
+          <p>The last line at the object, against anything that gets through.</p>
+          <div class="ct-note__fx"><figure><span><img src="assets/img/spys.webp" alt=""></span><figcaption>SPYS</figcaption></figure><figure><span><img src="assets/img/spys-hl.webp" alt=""></span><figcaption>SPYS HL</figcaption></figure></div>
+        </article>
+      </div>
+    </section>
+
+    <!-- LAYERS — L / M / S depth columns: straight under the hero, it explains the rings on the map -->
+    <section class="section bg-black" id="layers">
+      <div class="container">
+        <div class="head">
+          <div class="head__l"><span class="kicker">Echelon architecture</span><h2 class="t-h1">Every distance has its interceptor.</h2></div>
+          <p class="t-body">Threats are met in depth: far from the object, on the midline and at the last close-in line. If one layer misses, the next one engages.</p>
+        </div>
+
+        <div class="ct-axis" aria-hidden="true">
+          <span class="ct-axis__threat"><svg viewBox="0 0 24 24"><path d="M12 2L21 20L12 15.5L3 20Z" fill="currentColor"/></svg>Incoming threat</span>
+          <span class="ct-axis__obj">Protected object<i></i></span>
+          <div class="ct-axis__line"><b style="left:0">50 km</b><b style="left:33.333%">30 km</b><b style="left:66.666%">close-in</b></div>
+        </div>
+
+        <div class="ct-layers" id="ct-layers">
+          <article class="ct-layer is-active" data-layer="L" tabindex="0">
+            <div class="ct-layer__top"><span class="ct-layer__k">L</span><div><h3>Long range</h3><span>up to 50 km</span></div></div>
+            <p class="ct-layer__desc">Intercepts far from the object — before strike drones get close.</p>
+            <div class="ct-layer__label">Effectors</div>
+            <div class="ct-fx">
+              <figure><span><img src="assets/img/strila.webp" alt="" loading="lazy"></span><figcaption>STRILA</figcaption></figure>
+              <figure><span><img src="assets/img/strila-2-lr.webp" alt="" loading="lazy"></span><figcaption>STRILA 2 LR</figcaption></figure>
+            </div>
+            <dl class="ct-layer__meta"><div><dt>Threats</dt><dd>Shahed / Geran · long-range strike drones</dd></div></dl>
+          </article>
+          <article class="ct-layer" data-layer="M" tabindex="0">
+            <div class="ct-layer__top"><span class="ct-layer__k">M</span><div><h3>Mid range</h3><span>up to 30 km</span></div></div>
+            <p class="ct-layer__desc">The midline against fast, jet-powered aerial targets.</p>
+            <div class="ct-layer__label">Effectors</div>
+            <div class="ct-fx">
+              <figure><span><img src="assets/img/strila.webp" alt="" loading="lazy"></span><figcaption>STRILA</figcaption></figure>
+              <figure><span><img src="assets/img/strila-2-lr.webp" alt="" loading="lazy"></span><figcaption>STRILA 2 LR</figcaption></figure>
+              <figure><span><img src="assets/img/spys.webp" alt="" loading="lazy"></span><figcaption>SPYS</figcaption></figure>
+              <figure><span><img src="assets/img/spys-hl.webp" alt="" loading="lazy"></span><figcaption>SPYS HL</figcaption></figure>
+            </div>
+            <dl class="ct-layer__meta"><div><dt>Threats</dt><dd>Jet-powered drones · Molniya · Italmas</dd></div></dl>
+          </article>
+          <article class="ct-layer" data-layer="S" tabindex="0">
+            <div class="ct-layer__top"><span class="ct-layer__k">S</span><div><h3>Self defence</h3><span>close-in</span></div></div>
+            <p class="ct-layer__desc">The last line at the object, against anything that gets through.</p>
+            <div class="ct-layer__label">Effectors</div>
+            <div class="ct-fx">
+              <figure><span><img src="assets/img/spys.webp" alt="" loading="lazy"></span><figcaption>SPYS</figcaption></figure>
+              <figure><span><img src="assets/img/spys-hl.webp" alt="" loading="lazy"></span><figcaption>SPYS HL</figcaption></figure>
+            </div>
+            <dl class="ct-layer__meta"><div><dt>Threats</dt><dd>Recon UAVs (ZALA, Orlan) · rotary wings</dd></div></dl>
+          </article>
+        </div>
+        <a class="ct-anyplat" href="#platforms">
+          <span class="ct-anyplat__g" aria-hidden="true"><i class="ct-g ct-g--l"></i><i class="ct-g ct-g--m"></i><i class="ct-g ct-g--s"></i></span>
+          <span><b>Any platform, any echelon.</b> Every layer launches from ground, airborne, naval or hand-held platforms.</span>
+          <span class="ct-anyplat__go">Launch platforms <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 12h17M14 6l6 6-6 6"/></svg></span>
+        </a>
+      </div>
+    </section>
+
+    <!-- STATEMENT -->
+    <section class="section ct-statement">
+      <div class="container statement">
+        <span class="kicker rv">What is CONTOUR</span>
+        <div>
+          <p class="statement__text rv">CONTOUR is WIY’s layered air defence system. It decides <em>how, when and with which interceptor</em> to engage — and links every layer into <em>one connected shield.</em></p>
+          <div class="btns mt-l rv rv-d1">
+            <a class="btn btn--line" href="#contact">Request a briefing <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 12h17M14 6l6 6-6 6"/></svg></a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- EFFECTORS — the interceptor drones of each echelon. The cards are filled by contour.js from
+         assets/js/data.js (the same source as the product pages); which echelons a drone serves is set here -->
+    <section class="section bg-gray" id="effectors">
+      <div class="container">
+        <div class="head">
+          <div class="head__l"><span class="kicker">Effectors</span><h2 class="t-h1">One interceptor family for every echelon.</h2></div>
+          <p class="t-body">Interceptor drones matched to the range and speed of the threat: STRILA reaches far out for Shahed-class targets, SPYS closes on jet-powered drones on the midline and at the object.</p>
+        </div>
+        <div class="ct-echf" role="group" aria-label="Show the effectors of one echelon">
+          <button type="button" class="is-on" data-f="" aria-pressed="true">All echelons</button>
+          <button type="button" data-f="L" aria-pressed="false"><i class="ct-g ct-g--l"></i>L · Long range</button>
+          <button type="button" data-f="M" aria-pressed="false"><i class="ct-g ct-g--m"></i>M · Mid range</button>
+          <button type="button" data-f="S" aria-pressed="false"><i class="ct-g ct-g--s"></i>S · Self defence</button>
+        </div>
+        <div class="ct-effs" id="ct-effs">
+          <div class="ct-eff" data-slug="strila" data-ech="L M"></div>
+          <div class="ct-eff" data-slug="strila-2-lr" data-ech="L M"></div>
+          <div class="ct-eff" data-slug="spys" data-ech="M S"></div>
+          <div class="ct-eff" data-slug="spys-hl" data-ech="M S"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- PLATFORMS — multi-platform: the same interceptors fly from any of these carriers, on any echelon
+         (the platforms are deliberately not tied to the rings) -->
+    <section class="ct-gal-sec bg-black" id="platforms" aria-label="Launch platforms">
+      <!-- PLATFORM GALLERY — the whole section is one grid of cells with 1px seams: the heading cell, the platform tiles,
+           and empty edge cells (.ct-edge) left and right of the site container that run the seams out to the screen edges.
+           data-video on a tile = its video (muted loop, plays on hover; on touch screens while in view); empty = the render -->
+      <div class="ct-gal" id="ct-gal">
+        <i class="ct-edge ct-edge--1" aria-hidden="true"></i>
+        <i class="ct-edge ct-edge--2" aria-hidden="true"></i>
+        <i class="ct-edge ct-edge--3" aria-hidden="true"></i>
+        <i class="ct-edge ct-edge--4" aria-hidden="true"></i>
+        <i class="ct-edge ct-edge--5" aria-hidden="true"></i>
+        <i class="ct-edge ct-edge--6" aria-hidden="true"></i>
+        <i class="ct-edge ct-edge--7" aria-hidden="true"></i>
+        <i class="ct-edge ct-edge--8" aria-hidden="true"></i>
+        <i class="ct-edge ct-edge--9" aria-hidden="true"></i>
+        <div class="ct-tile ct-tile--head">
+          <div class="head">
+            <div class="head__l"><span class="kicker">Launch platforms</span><h2 class="t-h1">Any platform for every interceptor.</h2></div>
+            <p class="t-body">WIY interceptors are not tied to a launcher. Every one of them flies from fixed, mobile, airborne, naval and hand-held platforms — on any echelon, wherever the mission needs it.</p>
+          </div>
+        </div>
+        <figure class="ct-tile ct-tile--box ct-tile--photo" data-video="">
+          <div class="ct-tile__media"><img src="assets/img/contour/box-photo.webp" alt="Ground box" loading="lazy"></div>
+          <figcaption class="ct-tile__cap"><span>Ground</span>A containerised launcher, ready to fire.</figcaption>
+          <div class="ct-tile__bar"><b>01</b>Ground box<span class="ct-tile__ech" role="img" aria-label="Echelons L, M"><span><i class="ct-g ct-g--l"></i>L</span><span><i class="ct-g ct-g--m"></i>M</span></span></div>
+        </figure>
+        <figure class="ct-tile ct-tile--air ct-tile--photo" data-video="">
+          <div class="ct-tile__media"><img src="assets/img/contour/p19.webp" alt="Carrier aircraft" loading="lazy"></div>
+          <figcaption class="ct-tile__cap"><span>Air</span>Launched in flight, closer to the threat.</figcaption>
+          <div class="ct-tile__bar"><b>02</b>Carrier aircraft<span class="ct-tile__ech" role="img" aria-label="Echelons L, M"><span><i class="ct-g ct-g--l"></i>L</span><span><i class="ct-g ct-g--m"></i>M</span></span></div>
+        </figure>
+        <figure class="ct-tile ct-tile--ugv ct-tile--photo" data-video="">
+          <div class="ct-tile__media"><img src="assets/img/contour/ugv-photo.webp" alt="UGV" loading="lazy"></div>
+          <figcaption class="ct-tile__cap"><span>Ground</span>An uncrewed ground vehicle that moves with the line.</figcaption>
+          <div class="ct-tile__bar"><b>03</b>UGV<span class="ct-tile__ech" role="img" aria-label="Echelons L, M"><span><i class="ct-g ct-g--l"></i>L</span><span><i class="ct-g ct-g--m"></i>M</span></span></div>
+        </figure>
+        <div class="ct-tile ct-tile--note ct-tile--ech">
+          <span class="ct-tile__glyphs" aria-hidden="true"><i class="ct-g ct-g--l"></i><i class="ct-g ct-g--m"></i><i class="ct-g ct-g--s"></i></span>
+          <p><b>Every platform, every echelon.</b>L · Long range<br>M · Mid range<br>S · Self defence</p>
+        </div>
+        <figure class="ct-tile ct-tile--usv ct-tile--photo" data-video="">
+          <div class="ct-tile__media"><img src="assets/img/contour/usv-photo.webp" alt="USV" loading="lazy"></div>
+          <figcaption class="ct-tile__cap"><span>Sea</span>An uncrewed surface vessel for coasts and rivers.</figcaption>
+          <div class="ct-tile__bar"><b>04</b>USV<span class="ct-tile__ech" role="img" aria-label="Echelons L, M"><span><i class="ct-g ct-g--l"></i>L</span><span><i class="ct-g ct-g--m"></i>M</span></span></div>
+        </figure>
+        <figure class="ct-tile ct-tile--crew ct-tile--photo" data-video="">
+          <div class="ct-tile__media"><img src="assets/img/contour/crew-photo.webp" alt="Manual launch" loading="lazy"></div>
+          <figcaption class="ct-tile__cap"><span>Hand-held</span>From the operator’s hand, no infrastructure.</figcaption>
+          <div class="ct-tile__bar"><b>05</b>Manual launch<span class="ct-tile__ech" role="img" aria-label="Echelons L, M, S"><span><i class="ct-g ct-g--l"></i>L</span><span><i class="ct-g ct-g--m"></i>M</span><span><i class="ct-g ct-g--s"></i>S</span></span></div>
+        </figure>
+        <div class="ct-tile ct-tile--note ct-tile--more">
+          <span class="ct-tile__k">Integration-ready carriers</span>
+          <p>UGV · USV · cars · airplanes · helicopters · UAV carriers</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- DETECTION — the sensors and information sources behind the air picture -->
+    <section class="section" id="detection">
+      <div class="container">
+        <div class="head">
+          <div class="head__l"><span class="kicker">Detection</span><h2 class="t-h1">Every threat seen early, from more than one source.</h2></div>
+          <p class="t-body">An open defence architecture: WIY is the integration layer between sensor makers, launch platforms and interceptors. Every source feeds one air picture.</p>
+        </div>
+        <div class="ct-det">
+          <figure class="ct-det__fig"><img src="assets/img/contour/radar.webp" alt="Radar" loading="lazy"><figcaption>Radar cueing sends the interceptors to the target sector automatically.</figcaption></figure>
+          <ul class="ct-det__list">
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/><path d="M12 12l6.4-6.4"/></svg><h3>Radar</h3><p>Detects and tracks aerial targets and cues the interceptors to the target sector.</p></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg><h3>EO/IR</h3><p>Daylight and thermal optics confirm and track the target. On board, the same channels guide the final approach.</p></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="12" cy="12" r="1.5"/><path d="M8.5 8.5a5 5 0 0 0 0 7M15.5 8.5a5 5 0 0 1 0 7M5.6 5.6a9 9 0 0 0 0 12.8M18.4 5.6a9 9 0 0 1 0 12.8"/></svg><h3>Passive sensors</h3><p>Detect without emitting a signal, so the sensor itself stays hidden.</p></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M12 21s-7-6.2-7-11.5a7 7 0 0 1 14 0C19 14.8 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.5"/></svg><h3>Skymap</h3><p>Shared air-situation data.</p></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M12 3l9 5-9 5-9-5 9-5z"/><path d="M3 13l9 5 9-5"/></svg><h3>Partner systems</h3><p>Third-party radars, optics and target-designation sources plug into the same picture.</p></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><rect x="9" y="3" width="6" height="5"/><rect x="3" y="16" width="6" height="5"/><rect x="15" y="16" width="6" height="5"/><path d="M12 8v4M6 16v-4h12v4"/></svg><h3>Mosaic</h3><p>The common operational picture that ties every source together.</p></li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <!-- MOSAIC — the coordination layer above CONTOUR: what it does, strategic vs tactical, its two loops -->
+    <section class="section bg-black" id="mosaic">
+      <div class="container">
+        <div class="head">
+          <div class="head__l"><span class="kicker">Mosaic UXS</span><h2 class="t-h1">Mosaic builds the picture. CONTOUR acts on it.</h2></div>
+          <p class="t-body">Sensors and information flow into Mosaic UXS. It detects the threats, coordinates the decisions and integrates the effectors — CONTOUR carries out the air defence.</p>
+        </div>
+        <ul class="ct-does" aria-label="What Mosaic UXS does">
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="2"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/></svg><span>Threat detection</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="6" cy="5" r="2"/><circle cx="18" cy="5" r="2"/><circle cx="12" cy="19" r="2"/><path d="M6 7v2a3 3 0 0 0 3 3h6a3 3 0 0 0 3-3V7M12 12v5"/></svg><span>Decision and coordination</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9L12 3z"/><path d="M4 7.5l8 4.5 8-4.5M12 12v9"/></svg><span>Effector integration</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg><span>Continuous improvement</span></li>
+        </ul>
+        <div class="ct-duo">
+          <div>
+            <span class="kicker">Mosaic · Strategic coordination</span>
+            <h3 class="t-h2">What is happening, and what does the mission need?</h3>
+            <ul class="ct-list"><li>Common operational picture</li><li>Battlefield management</li><li>Mission planning</li><li>Platform integration</li><li>Information distribution</li></ul>
+          </div>
+          <div class="ct-duo__key">
+            <span class="kicker">CONTOUR · Tactical execution</span>
+            <h3 class="t-h2">How, when and with what do we intercept?</h3>
+            <ul class="ct-list"><li>Air defence decision layer</li><li>Air defence engagement</li><li>Layer coordination</li><li>Effector coordination</li><li>Engagement optimisation</li></ul>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- CLOSED LOOP -->
+    <section class="section">
+      <div class="container">
+        <div class="head">
+          <div class="head__l"><span class="kicker">Integration</span><h2 class="t-h1">From detection to result, in one closed loop.</h2></div>
+        </div>
+        <div class="ct-sensors rv">
+          <span class="ct-sensors__label">Sensors &amp; information</span>
+          <ul><li>Radar</li><li>EO/IR</li><li>Passive sensors</li><li>Skymap</li><li>Partner systems</li></ul>
+        </div>
+        <ol class="ct-loop">
+          <li class="rv"><b>01</b><h3>Mosaic</h3><span>Target · Task · Constraints</span><p>Builds the picture: what is in the air and what needs to be done.</p></li>
+          <li class="rv rv-d1 is-key"><b>02</b><h3>CONTOUR</h3><span>Boundary · Effector · Scenario</span><p>Decides how, when and with which effector to engage.</p></li>
+          <li class="rv rv-d2"><b>03</b><h3>Effector</h3><span>Target interception</span><p>The interceptor drone reaches and hits the target.</p></li>
+          <li class="rv rv-d3"><b>04</b><h3>Feedback</h3><span>Status · Telemetry · Result</span><p>Results flow back and sharpen the next decision.</p></li>
+        </ol>
+      </div>
+    </section>
+
+    <div data-contact-section data-title="Request a CONTOUR briefing"></div>
+  </main>
+
+  <div id="site-footer"></div>
+  <script src="assets/js/data.js"></script>
+  <script src="assets/js/main.js"></script>
+  <script src="assets/data/ukraine.js"></script>
+  <script src="assets/data/ukraine-detail.js"></script>
+  <script src="assets/js/contour.js"></script>
+</body>
+</html>

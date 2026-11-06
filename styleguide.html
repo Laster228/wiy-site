@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Design concept | WIY Drones</title>
+  <meta name="robots" content="noindex">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="assets/css/main.css">
+  <style>
+    .sg-grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); }
+    .sw { border: 1px solid var(--line); }
+    .sw__c { height: 160px; }
+    .sw__t { padding: 16px; font-size: .875rem; display: grid; gap: 4px; }
+    .sw__t b { font-weight: 600; }
+    .row { display: grid; gap: 24px; padding: 28px 0; border-bottom: 1px solid var(--line); align-items: baseline; }
+    @media (min-width: 900px) { .row { grid-template-columns: 220px 1fr; } }
+    .row > span { font-size: .8125rem; color: var(--gray-500); }
+    .principles { display: grid; gap: 1px; background: var(--line); border: 1px solid var(--line); }
+    @media (min-width: 900px) { .principles { grid-template-columns: repeat(3, 1fr); } }
+    .principles > div { background: #fff; padding: 32px; display: grid; gap: 12px; align-content: start; }
+    .principles b { font-size: .75rem; color: var(--olive); font-weight: 600; }
+    .map { display: grid; gap: 0; border-top: 1px solid var(--black); }
+    .map > div { display: grid; gap: 8px 24px; padding: 18px 0; border-bottom: 1px solid var(--line); }
+    @media (min-width: 900px) { .map > div { grid-template-columns: 220px 1fr; } }
+    .map a { text-decoration: underline; text-underline-offset: 3px; }
+  </style>
+</head>
+<body class="hdr-dark" data-page="styleguide">
+  <div id="site-header"></div>
+  <main>
+    <section class="phead"><div class="container">
+      <nav class="crumbs"><a href="index.html">Home</a><span>/</span><span>Design concept</span></nav>
+      <div class="phead__row">
+        <h1 class="t-display">Design concept v2</h1>
+        <p class="t-lead t-body">WIY Drones website aligned with the Quantum Systems Group identity. This page documents the concept for approval and is the reference for the CMS build.</p>
+      </div>
+    </div></section>
+
+    <!-- PRINCIPLES -->
+    <section class="section pt-0"><div class="container">
+      <div class="head"><div class="head__l"><span class="kicker">01 — Principles</span><h2 class="t-h1">Group identity, WIY voice</h2></div></div>
+      <div class="principles">
+        <div><b>01</b><h3 class="t-h3">Product as hero</h3><p class="t-body">Full-screen field photography and studio shots carry the page. Interface stays quiet: monochrome, thin lines, no decoration.</p></div>
+        <div><b>02</b><h3 class="t-h3">Navigation by domain</h3><p class="t-body">Like QS (Air · Land · Sea · cUAS), WIY is organised by mission domain: cUAS · ISR · Strike · GCS &amp; Software, with product mega-menus.</p></div>
+        <div><b>03</b><h3 class="t-h3">Facts, large</h3><p class="t-body">Key specifications are shown as oversized numbers, details live in accordions and spec tables — scannable for procurement and operators.</p></div>
+        <div><b>04</b><h3 class="t-h3">Part of the Group</h3><p class="t-body">“A company of Quantum Systems” in footer, a Group banner on home and company pages, shared typeface and colour system.</p></div>
+        <div><b>05</b><h3 class="t-h3">Trust and verification</h3><p class="t-body">NATO NCAGE, NSN, ISO and partner logos are visible; the contact form explains the wartime verification requirement.</p></div>
+        <div><b>06</b><h3 class="t-h3">One content model</h3><p class="t-body">Every product follows one template driven by structured data — ready to map to a CMS post type.</p></div>
+      </div>
+    </div></section>
+
+    <!-- COLOURS -->
+    <section class="section bg-gray"><div class="container">
+      <div class="head"><div class="head__l"><span class="kicker">02 — Colour</span><h2 class="t-h1">Quantum Systems palette</h2></div>
+        <p class="t-body">From the QS brand portal. Interface is 98% black and white; Governmental Olive is the defence accent and is used only as a micro-marker (kicker squares, status dots, focus states). Commercial Blue is not used on WIY.</p></div>
+      <div class="sg-grid">
+        <div class="sw"><div class="sw__c" style="background:#000"></div><div class="sw__t"><b>Quantum Black</b><span>#000000 · RAL 9005</span></div></div>
+        <div class="sw"><div class="sw__c" style="background:#fff"></div><div class="sw__t"><b>Cloud White</b><span>#FFFFFF</span></div></div>
+        <div class="sw"><div class="sw__c" style="background:#9f9f00"></div><div class="sw__t"><b>Governmental Olive</b><span>#9F9F00 · accent only</span></div></div>
+        <div class="sw"><div class="sw__c" style="background:#f6f6f6"></div><div class="sw__t"><b>Gray 50</b><span>#F6F6F6 · section / studio bg</span></div></div>
+        <div class="sw"><div class="sw__c" style="background:#7d7d7d"></div><div class="sw__t"><b>Gray 500</b><span>#7D7D7D · secondary text</span></div></div>
+        <div class="sw"><div class="sw__c" style="background:#4a4a4a"></div><div class="sw__t"><b>Gray 700</b><span>#4A4A4A · body text</span></div></div>
+      </div>
+    </div></section>
+
+    <!-- TYPE -->
+    <section class="section"><div class="container">
+      <div class="head"><div class="head__l"><span class="kicker">03 — Typography</span><h2 class="t-h1">Montserrat</h2></div>
+        <p class="t-body">QS corporate typeface. Headlines in Regular 400 with tight tracking — light and technical rather than heavy and “military”. Sentence case everywhere; no all-caps headlines.</p></div>
+      <div style="border-top:1px solid var(--black)">
+        <div class="row"><span>Hero · 400 · 112px</span><div class="t-hero">STRILA</div></div>
+        <div class="row"><span>Display · 400 · 76px</span><div class="t-display">Protecting the sky</div></div>
+        <div class="row"><span>H1 · 400 · 60px</span><div class="t-h1">Key capabilities of STRILA</div></div>
+        <div class="row"><span>H2 · 400 · 42px</span><div class="t-h2">Explore more counter-UAS systems</div></div>
+        <div class="row"><span>H3 · 500 · 26px</span><div class="t-h3">GNSS-denied and EW-contested</div></div>
+        <div class="row"><span>Lead · 400 · 20px</span><p class="t-lead">A high-speed interceptor UAV built to defeat fast, highly manoeuvrable aerial targets.</p></div>
+        <div class="row"><span>Body · 400 · 16px</span><p class="t-body">Protected communication channels and in-flight frequency switching support stable control under active jamming.</p></div>
+        <div class="row"><span>Kicker · 500 · 13px</span><span class="kicker" style="color:var(--black)">Counter-UAS</span></div>
+      </div>
+    </div></section>
+
+    <!-- COMPONENTS -->
+    <section class="section bg-gray"><div class="container">
+      <div class="head"><div class="head__l"><span class="kicker">04 — Components</span><h2 class="t-h1">Interface elements</h2></div></div>
+      <div class="row"><span>Buttons</span><div class="btns">
+        <a class="btn" href="#">Discover STRILA <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 12h17M14 6l6 6-6 6"/></svg></a>
+        <a class="btn btn--line" href="#">About WIY</a>
+        <span style="background:#000;padding:8px;display:inline-flex;gap:8px"><a class="btn btn--light" href="#">On dark</a><a class="btn btn--line-light" href="#">Outline</a></span>
+      </div></div>
+      <div class="row"><span>Links</span><div class="btns"><a class="more more--u" href="#">View all products <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 12h17M14 6l6 6-6 6"/></svg></a></div></div>
+      <div class="row"><span>Status tags</span><div class="btns"><span class="tag tag--live">In service</span><span class="tag">In development</span><span class="tag">Combat testing</span><span class="tag">NATO NSN</span></div></div>
+      <div class="row"><span>Big numbers</span><div class="bignum" style="text-align:left"><div><strong>415<small>km/h</small></strong><span>Maximum speed</span></div><div><strong>34<small>km</small></strong><span>Maximum range</span></div></div></div>
+      <div class="row"><span>Accordion</span><div class="acc">
+        <details open><summary>Operation mode<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 4v16M4 12h16"/></svg></summary><div class="acc__body">Radar cueing and WIY software guide STRILA semi-autonomously to the target sector.</div></details>
+        <details><summary>Reusability<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 4v16M4 12h16"/></svg></summary><div class="acc__body">STRILA can return and land safely.</div></details>
+      </div></div>
+    </div></section>
+
+    <!-- IMAGERY -->
+    <section class="section"><div class="container">
+      <div class="head"><div class="head__l"><span class="kicker">05 — Imagery</span><h2 class="t-h1">Two photo modes</h2></div>
+        <p class="t-body">Field: real deployment, natural light, cool tones, people as context not heroes. Studio: product on pure white, used for cards, mega-menu and light hero slides. No stock “military” clichés, no illustrations of explosions on main pages.</p></div>
+      <div class="domains">
+        <div class="domain domain--half"><img src="assets/img/photo/strila-kits-snow.webp" alt=""><div class="domain__body"><h3 class="t-h3">Field photography</h3><p>Full-bleed, gradient for legibility</p></div></div>
+        <div class="domain domain--half domain--studio"><img src="assets/img/strila.webp" alt=""><div class="domain__body"><h3 class="t-h3">Studio cut-out</h3><p>White / Gray 50 background</p></div></div>
+      </div>
+    </div></section>
+
+    <!-- SITEMAP -->
+    <section class="section bg-gray"><div class="container">
+      <div class="head"><div class="head__l"><span class="kicker">06 — Structure</span><h2 class="t-h1">Sitemap</h2></div></div>
+      <div class="map">
+        <div><b>Home</b><span><a href="index.html">index.html</a> — product hero carousel · statement · domains · flagship story · numbers · full-bleed · product rail · training · news · partners · Group banner · contact</span></div>
+        <div><b>Products</b><span><a href="products.html">products.html</a> — domain tabs: cUAS · ISR · Strike · GCS &amp; Software</span></div>
+        <div><b>Product template</b><span><a href="product.html?p=strila">STRILA</a> (flagship, full) · <a href="product.html?p=spys">SPYS</a> (studio hero) · <a href="product.html?p=kruk">KRUK</a> (short) · <a href="product.html?p=wiy-gcs">WIY GCS</a></span></div>
+        <div><b>Company</b><span><a href="company.html">company.html</a> — about · Quantum Systems Group · certifications · training &amp; support · partners</span></div>
+        <div><b>News</b><span><a href="news.html">news.html</a></span></div>
+        <div><b>Careers</b><span><a href="careers.html">careers.html</a></span></div>
+        <div><b>Contact</b><span><a href="contacts.html">contacts.html</a> — with verification notice</span></div>
+      </div>
+    </div></section>
+  </main>
+  <div id="site-footer"></div>
+  <script src="assets/js/data.js"></script>
+  <script src="assets/js/main.js"></script>
+</body>
+</html>
