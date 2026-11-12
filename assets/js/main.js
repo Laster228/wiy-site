@@ -57,9 +57,9 @@
     const html = `
       <header class="hdr" id="hdr">
         <div class="container hdr__in">
-          <a class="brand" href="index.html" aria-label="WIY Drones — home">
-            <img class="logo-l" src="assets/img/logo-white.svg" alt="WIY Drones" width="79" height="30">
-            <img class="logo-d" src="assets/img/logo-black.svg" alt="" width="79" height="30">
+          <a class="brand" href="index.html" aria-label="QWI — home">
+            <img class="logo-l" src="assets/img/logo-qwi-white.svg" alt="QWI" width="46" height="30">
+            <img class="logo-d" src="assets/img/logo-qwi-black.svg" alt="" width="46" height="30">
             <span class="brand__sep" aria-hidden="true"></span>
             <span class="brand__tag">Protecting<br>the sky.</span>
           </a>
@@ -136,7 +136,7 @@
         <div class="container">
           <div class="ftr__top">
             <div class="ftr__brand">
-              <img src="assets/img/logo-white.svg" alt="WIY Drones" width="95" height="36">
+              <img src="assets/img/logo-qwi-white.svg" alt="QWI" width="55" height="36">
               <p>WIY Advanced Aerial Systems — Ukrainian developer and manufacturer of interceptor, reconnaissance and strike UAVs and ground control systems.</p>
               <a class="ftr__group" href="https://quantum-systems.com" target="_blank" rel="noopener">A company of <img src="assets/img/qs-logo-white.svg" alt="Quantum Systems"></a>
             </div>
@@ -166,7 +166,7 @@
             <span>© ${new Date().getFullYear()} WIY Advanced Aerial Systems LLC. All rights reserved.</span>
             <nav><a href="#">ISO certified</a><a href="#">NCAGE A44NJ</a><a href="#">Legal notice</a><a href="#">Privacy policy</a><a href="#">Terms</a></nav>
           </div>
-          <div class="ftr__mark" aria-hidden="true"><img src="assets/img/logo-white.svg" alt=""></div>
+          <div class="ftr__mark" aria-hidden="true"><img src="assets/img/logo-qwi-white.svg" alt=""></div>
         </div>
       </footer>`;
   }

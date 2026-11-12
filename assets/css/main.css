@@ -504,7 +504,7 @@ html.is-nav-open { overflow: hidden; }
 .ftr__bottom nav { display: flex; flex-wrap: wrap; gap: 24px; }
 .ftr__bottom a:hover { color: var(--white); }
 .ftr__mark { margin-bottom: -2.5vw; }
-.ftr__mark img { width: 100%; height: auto; opacity: 0.07; }
+.ftr__mark img { width: 58%; height: auto; opacity: 0.07; }   /* QWI icon (1.52:1) at the height the old wide wordmark had */
 
 /* ==========================================================================
    Motion

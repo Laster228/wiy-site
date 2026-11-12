@@ -8,3 +8,5 @@ Thumbs.db
 desktop.ini
 .DS_Store
 .vscode/
+# working design files (stickers, photo sources) — not part of the site
+design/
